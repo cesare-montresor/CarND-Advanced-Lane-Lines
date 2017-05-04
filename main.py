@@ -19,17 +19,12 @@ test_images_paths = glob.glob(test_images_path+'*.jpg')
 image = cv2.imread(test_images_paths[0])
 image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
 
-image = camera.unsidtort(image)
-#if debug: utils.showImage(image)
-image = camera.threasholdLaneLines(image,debug=True)
-utils.showImage(image)
-image = camera.ROI(image)
-#if debug: utils.showImage(image)
-image, debug_image = camera.birdsEye(image, debug=True)
-utils.showImage(debug_image)
-utils.showImage(image)
+hud = camera.pipeline(image, debug=False)
+utils.showImage(hud)
 
-camera.processVideo('project_video.mp4',debug=True)
+camera.processVideo('project_video.mp4')
+
+# camera.processVideo('challenge_video.mp4') #, live=True)
 
 
 

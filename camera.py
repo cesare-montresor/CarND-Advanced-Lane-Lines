@@ -4,113 +4,201 @@ import numpy as np
 import matplotlib.pyplot as plt
 import utils
 import road
+from moviepy.editor import VideoFileClip
+
 
 default_calibration_file='./camera_params.p'
+video_output_path = './videos/'
+frame_dump_folder = './frames/'
+
 
 class Camera():
 
-    def __init__(self, filename=None):
+    def __init__(self, filename=None, avgLastN = 5):
         if filename is None:
             filename = default_calibration_file
         self.filename = filename
         self.calibrations = None
         self.loadCalibrations()
-
-    def processVideo(self,path,debug=True):
-        vidcap = cv2.VideoCapture(path)
-        count = 0
-        while True:
-            success, image = vidcap.read()
-            if not success:
-                break
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            self.pipeline(image,debug=debug)
+        self.lastBirdEyePoints = {}
+        self.lastLane = []
+        self.avgLastN = 3
 
 
-    def pipeline(self, image, debug=False):
-        image = self.unsidtort(image)
-        #if debug: utils.showImage(image)
+## Video Processing
 
-        image = self.threasholdLaneLines(image)
-        #if debug: utils.showImage(image)
+    def processVideo(self, path, live=False, debug=False):
+        if not live:
+            strdate = '_'+utils.standardDateFormat()
+            output_video = video_output_path + utils.filename_append(path,strdate)
+            video = VideoFileClip(path)
+            video_clip = video.fl_image(self.pipeline)  # NOTE: this function expects color images!!
+            video_clip.write_videofile(output_video, audio=False)
+        else:
+            vidcap = cv2.VideoCapture(path)
+            count = 0
+            while True:
+                success, image = vidcap.read()
+                if not success:
+                    break
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                final_image = self.pipeline(image,debug=debug)
+                utils.showImage(final_image)
 
-        image = self.ROI(image)
-        #if debug: utils.showImage(image)
+## Frame Processing
 
-        image, debug_image = self.birdsEye(image, debug=debug)
-        if debug: utils.showImage(debug_image)
-        if debug: utils.showImage(image)
+    def pipeline(self, image, debug=False, dump_frames=True):
 
-        image, lane = self.laneSearch(image, debug=debug)
-        #if debug: utils.showImage(image)
 
-        lane.curvature(debug=debug)
+        original = image.copy()
+        image_unsidtort = self.unsidtort(image)
+        if debug: utils.showImage(image_unsidtort)
 
-    def calibrate(self, image_paths, size=(9,6), test_image=None, force=False, debug=False ):
+        image_thresh = self.threasholdLaneLines(image_unsidtort, debug=debug)
+        if debug: utils.showImage(image_thresh)
 
-        if os.path.isfile(self.filename):
-            return True
+        image_roi = self.ROI(image_thresh)
+        if debug: utils.showImage(image_roi)
 
-        nx = size[0]
-        ny = size[1]
+        image_bird, M, debug_image = self.birdsEye(image_roi, debug=debug)
+        if debug:
+            utils.showImage(image_bird)
+            utils.showImage(image)
 
-        # Arrays to store object points and image points from all the images.
-        object_points = []  # 3d points in real world space
-        image_points = []  # 2d points in image plane.
+        image_lanes, lane = self.laneSearch(image_bird, debug=debug)
+        if debug: utils.showImage(image_lanes)
 
-        # preparing template to use for every object_points
-        object_point_template = np.zeros((nx * ny, 3), np.float32)
-        object_point_template[:, :2] = np.mgrid[0:nx, 0:ny].T.reshape(-1, 2)
+        final_image = self.HUD(image_thresh, debug=debug)
+        if debug: utils.showImage(final_image)
 
-        # Step through the list and search for chessboard corners
-        for idx, filename in enumerate(image_paths):
-            img = cv2.imread(filename )
-            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        return final_image
 
-            # Find the chessboard corners
-            ret, image_corners = cv2.findChessboardCorners(gray, (nx, ny), None)
+## Pipeline functions (same order ^_^)
 
-            # If found, add object points, image points
-            if ret == True:
-                #print(image_corners)
-                object_points.append(object_point_template)
-                image_points.append(image_corners)
+    def HUD(self, original, debug=False):
+        h,w = original.shape[0],original.shape[1]
+        if len(original.shape) == 2 or original.shape[2] == 1:
+            if np.max(original) <=1: # convert bitmask into image
+                original *= 255
+            original = cv2.cvtColor(original,cv2.COLOR_GRAY2RGB)
 
-                # Draw and display the corners
-                if debug:
-                    img_lines = cv2.drawChessboardCorners(img, (nx, ny), image_corners, ret)
-                    plt.imshow(img_lines)
-                    plt.show()
-                    plt.close('all')
+        hud = np.zeros_like(original)
 
-            else:
-                print('Corners NOT found for image',filename)
+        lastLaneN = self.lastLane[-self.avgLastN:]
 
-        sample_image = cv2.imread(image_paths[0])
-        height, width, channels = sample_image.shape
+        cntN = len(lastLaneN)
+        best_fit, left_fit, right_fit = [0,0,0],[0,0,0],[0,0,0]
+        best_curve_m, left_curve_m, right_curve_m = 0,0,0
+        for lane in lastLaneN:
+            best_curve_m += lane.best.curve_rad_m
+            left_curve_m += lane.left.curve_rad_m
+            right_curve_m += lane.right.curve_rad_m
 
-        # Do camera calibration given object points and image points
-        ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(object_points, image_points, (width,height), None, None)
+            best_fit = np.add(best_fit,lane.best.fit)
+            left_fit = np.add(left_fit,lane.left.fit)
+            right_fit = np.add(right_fit,lane.right.fit)
 
-        self.calibrations = {
-            'ret':ret,
-            'mtx':mtx,
-            'dist':dist,
-            'rvecs':rvecs,
-            'tvecs':tvecs
-        }
-        #print(self.calibrations)
 
-        if force or not os.path.isfile(self.filename):
-            self.saveCalibrations()
+        best_curve_m = best_curve_m / cntN
+        left_curve_m = left_curve_m / cntN
+        right_curve_m = right_curve_m / cntN
 
-        return ret
+        best_fit /= cntN
+        left_fit /= cntN
+        right_fit /= cntN
+
+
+        ploty = np.linspace(0, h - 1, num=h)
+
+        left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
+        right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
+
+        size = 15
+        for i in range(len(ploty)):
+            y, lx, rx  = int(ploty[i]), int(left_fitx[i]), int(right_fitx[i])
+            hud[y, lx - size:lx + size] = (255, 0, 0)
+            hud[y, lx + size:rx - size] = (0, 255, 0)
+            hud[y, rx - size:rx + size] = (0, 0, 255)
+
+        text = "{:.0f}".format(best_curve_m)
+        text_size = cv2.getTextSize(text, fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=5, thickness=5)
+        text_w,text_h = text_size[0]
+
+        text_orig = ( int(lane.left.position+text_w/2), int(h-20) )
+        #print('text_box',text_box,'text_box_width',text_box_width)
+        cv2.putText(hud, text, text_orig, fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=5, thickness=5, color=(255, 255, 255))
+
+        src_point,dst_point = self.lastBirdEyePoints['src'], self.lastBirdEyePoints['dst']
+        M = cv2.getPerspectiveTransform(dst_point, src_point)
+        hud = cv2.warpPerspective(hud, M, (w, h), flags=cv2.INTER_LINEAR)
+
+        merged = cv2.addWeighted(original, 1.0, hud, 0.5, 0)
+
+
+
+        return merged
+
 
     def unsidtort(self,img):
         undist = cv2.undistort(img, self.calibrations['mtx'], self.calibrations['dist'], None, self.calibrations['mtx'])
         return undist
 
+
+
+    def threasholdLaneLines(self,image, kernel_size=(3,2), debug=False):
+        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        hls = cv2.split( cv2.cvtColor(image, cv2.COLOR_RGB2HLS) )
+
+        hue = hls[0]
+        sat = hls[2]
+
+        gray = cv2.equalizeHist(gray, gray)
+        hue = cv2.equalizeHist(hue, hue)
+        sat = cv2.equalizeHist(sat, sat)
+
+        yellow = np.zeros_like(hue)
+        bright0 = np.zeros_like(gray)
+        bright1 = np.zeros_like(sat)
+
+        yellow[( hue > 50 )&( hue < 60 )] = 1
+        bright0[gray > 240] = 1
+        bright1[sat > 240] = 1
+
+        color = bright0 | bright1 | yellow
+
+        if debug:
+            utils.showImages((yellow, bright0, bright1, color), cmap='gray')
+
+        hue_sx = utils.gradientAbolutes(hue, orient='x', thresh=(150, 180))
+        gray_sx = utils.gradientAbolutes(gray, orient='x', thresh=(150, 180))
+        sat_sx = utils.gradientAbolutes(sat, orient='x', thresh=(150, 180))
+
+        hue_sy = utils.gradientAbolutes(hue, orient='y', thresh=(150, 180))
+        gray_sy = utils.gradientAbolutes(gray, orient='y', thresh=(150, 180))
+        sat_sy = utils.gradientAbolutes(sat, orient='y', thresh=(150, 180))
+
+        if debug:
+            utils.showImages((hue_sx , hue_sy , gray_sx , gray_sy , sat_sx , sat_sy), cmap='gray')
+
+        gradient = (hue_sx | hue_sy | gray_sx | gray_sy | sat_sx | sat_sy)
+
+        if debug:
+            utils.showImages((color, gradient))
+        mask = ( color | gradient )
+
+        # density based noise reduction
+        # opening: erosion and dilation, see : http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
+        kernel = np.ones(kernel_size,np.uint8)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel) # turned out that noice is good for interpolation, i'll try it later down the line
+
+        if debug:
+            utils.showImages((mask, color, gradient))
+
+        return mask
+
     def ROI(self, img, offset=None, margin=None ):
+        img = img.copy()
+
         if offset is None:
             offset = (50, 50)
 
@@ -124,18 +212,110 @@ class Camera():
         left_top, left_bot = (cx - offset[0], cy + offset[1]), (margin[0], h - margin[1])
         right_top, right_bot = (cx + offset[0], cy + offset[1]), (w - margin[0], h - margin[1])
         poly_points = np.array([[left_top, right_top, right_bot, left_bot]], np.int32 )
-        print(type(mask[0]))
+        #print(type(mask[0]))
         cv2.fillPoly(mask, poly_points, (255,255,255) )
         masked_img = cv2.bitwise_and(img, img, mask=mask)
 
         return masked_img
 
-    def laneSearchHistogram(self,binary_image,offset=0,debug=True):
+    ## valid configurations
+    # offset = (75, 100), margin = (200, 70)
+    # offset = (75, 105), margin = (200, 40)
+    # offset=(65,98), margin=(200,40)
+    # offset=(60,95), margin=(200,40)
+    def birdsEye(self,img, offset=(60,95), margin=(200,40), kernel_size=(2,2) ,debug=False):
+        img = img.copy()
+        h,w = img.shape[0],img.shape[1]
+        cx,cy = int(w/2),int(h/2)
+
+        top_left, top_right = [cx - offset[0], cy + offset[1]], [cx + offset[0], cy + offset[1]]
+        bottom_left, bottom_right = [margin[0], h-margin[1]], [w-margin[0], h-margin[1]]
+        src_point = np.array([top_left, top_right, bottom_right, bottom_left], np.float32)
+
+        top_left[0] = bottom_left[0]   = int( (top_left[0]  + bottom_left[0] )/2)
+        top_right[0] = bottom_right[0] = int( (top_right[0] + bottom_right[0])/2)
+        top_left[1] = top_right[1] = 0
+        bottom_left[1] = bottom_right[1] = h
+        dst_point = np.array([top_left, top_right, bottom_right, bottom_left], np.float32)
+
+        self.lastBirdEyePoints = {'src':src_point, 'dst':dst_point}
+        M = cv2.getPerspectiveTransform(src_point, dst_point)
+        warped = cv2.warpPerspective(img, M, (w, h), flags=cv2.INTER_LINEAR)
+
+
+        # density based noise reduction
+        # opening: erosion and dilation, see : http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
+        # kernel = np.ones(kernel_size, np.uint8)
+        # warped = cv2.morphologyEx(warped, cv2.MORPH_OPEN, kernel, iterations=3)
+        # REMOVED: seems that interpolation works better with noise ...
+
+        if debug:
+            img = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
+            cv2.polylines(img, np.array([src_point], np.int), True, (0,255,0))
+
+        return warped, M, img
+
+    def laneSearch(self, binary_image, previous_lane=None, nrow=9, minpix=50, box_margin=50, debug=False):
+        h,w = binary_image.shape[0],binary_image.shape[1]
+
+        nonzero = binary_image.nonzero()
+        nonzeroy = np.array(nonzero[0])
+        nonzerox = np.array(nonzero[1])
+
+        previous_lane = self.lastLane[-1] if len(self.lastLane) > 0 else None
+        if previous_lane is not None:
+            #print('found previous positions','\n')
+            left_position, right_position = previous_lane.left.position, previous_lane.right.position
+        else:
+            #print('histogram search','\n')
+            left_position, right_position = self.laneSearchHistogram(binary_image, debug=debug)
+        binary_image, left_info, right_info = self.laneSearchSlidingWindows(binary_image, left_position, right_position, debug=debug)
+
+        left_fit, left_idx = left_info
+        right_fit, right_idx = right_info
+
+        # Generate x and y values for plotting
+        ploty = np.linspace(0, binary_image.shape[0] - 1, binary_image.shape[0])
+        left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
+        right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
+
+        # generated here to be able to include modifications (debug True) done by the lane search functions (hist, window)
+        output_img = np.dstack((binary_image, binary_image, binary_image)) * 255
+        if debug:
+            output_img[nonzeroy[left_idx], nonzerox[left_idx]] = [255, 0, 0]
+            output_img[nonzeroy[right_idx], nonzerox[right_idx]] = [0, 0, 255]
+            plt.imshow(output_img)
+            plt.plot(left_fitx, ploty, color='yellow')
+            plt.plot(right_fitx, ploty, color='yellow')
+            plt.xlim(0, w)
+            plt.ylim(h, 0)
+            plt.show()
+
+        left_line = road.Line()
+        left_line.fit = left_fit
+        left_line.count = len(left_idx)
+        left_line.position = left_position
+
+        right_line = road.Line()
+        right_line.fit = right_fit
+        right_line.count = len(right_idx)
+        right_line.position = right_position
+
+        lane = road.Lane()
+        lane.left = left_line
+        lane.right = right_line
+
+        lane.curvature(debug=debug)
+        self.lastLane.append(lane)
+
+        return output_img, lane
+
+    def laneSearchHistogram(self,binary_image,offset=0,debug=False):
         h, w = binary_image.shape[0], binary_image.shape[1]
         slice = binary_image[:int(h/2), :]
-        utils.showImage(slice,cmap='gray')
         histogram = np.sum(slice, axis=0)
         if debug:
+            utils.showImage(slice, cmap='gray')
             print('histogram',histogram.shape)
             plt.plot(histogram)
             plt.show()
@@ -198,159 +378,75 @@ class Camera():
         right_x = nonzerox[right_lane_idx]
         right_y = nonzeroy[right_lane_idx]
 
-        left_fit = np.polyfit(left_y, left_x, 2)
-        right_fit = np.polyfit(right_y, right_x, 2)
+        left_fit = None if len(left_y) == 0 else np.polyfit(left_y, left_x, 2)
+        right_fit = None if len(right_y) == 0 else np.polyfit(right_y, right_x, 2)
 
         return binary_image,(left_fit,left_lane_idx),(right_fit,right_lane_idx)
 
-    def laneSearch(self, binary_image, previous_lane=None, nrow = 9, minpix= 50, box_margin = 50, debug=False):
-        nonzero = binary_image.nonzero()
-        nonzeroy = np.array(nonzero[0])
-        nonzerox = np.array(nonzero[1])
-
-
-        if previous_lane is not None:
-            print('found previous positions')
-            left_position, right_position = previous_lane.left.position, previous_lane.right.position
-        else:
-            print('histogram search')
-            left_position, right_position = self.laneSearchHistogram(binary_image,debug=debug)
-
-        binary_image,left_info,right_info = self.laneSearchSlidingWindows(binary_image, left_position, right_position, debug=debug)
-
-        left_fit, left_idx = left_info
-        right_fit, right_idx = right_info
-
-        # Generate x and y values for plotting
-        ploty = np.linspace(0, binary_image.shape[0] - 1, binary_image.shape[0])
-        left_fitx = left_fit[0] * ploty ** 2 + left_fit[1] * ploty + left_fit[2]
-        right_fitx = right_fit[0] * ploty ** 2 + right_fit[1] * ploty + right_fit[2]
-
-        # generated here to be able to include modifications (debug True) done by the lane search functions (hist, window)
-        output_img = np.dstack((binary_image, binary_image, binary_image)) * 255
-        if debug:
-            output_img[nonzeroy[left_idx], nonzerox[left_idx]] = [255, 0, 0]
-            output_img[nonzeroy[right_idx], nonzerox[right_idx]] = [0, 0, 255]
-            plt.imshow(output_img)
-            plt.plot(left_fitx, ploty, color='yellow')
-            plt.plot(right_fitx, ploty, color='yellow')
-            plt.xlim(0, 1280)
-            plt.ylim(720, 0)
-            plt.show()
-
-        left_line = road.Line()
-        left_line.fit = left_fit
-        left_line.count = len(left_idx)
-        left_line.position = left_position
-
-        right_line = road.Line()
-        right_line.fit = right_fit
-        right_line.count = len(right_idx)
-        right_line.position = right_position
-
-        lane = road.Lane()
-        lane.left = left_line
-        lane.right = right_line
-
-        return output_img, lane
 
 
 
-    def threasholdLaneLines(self,image, debug=False):
-        gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        hls = cv2.split( cv2.cvtColor(image, cv2.COLOR_RGB2HLS) )
-        hsv = cv2.split( cv2.cvtColor(image, cv2.COLOR_RGB2HSV) )
-        yuv = cv2.split( cv2.cvtColor(image, cv2.COLOR_RGB2YUV) )
+## Calibration
 
-        hue = hls[0]
-        sat1 = hls[2]
-        sat2 = hsv[1]
+    def calibrate(self, image_paths, size=(9,6), test_image=None, force=False, debug=False ):
 
-        #if debug:
-        #    utils.showImages((gray, hue, sat1, sat2), cmap='gray')
+        if os.path.isfile(self.filename):
+            return True
 
-        gray = cv2.equalizeHist(gray, gray)
-        hue = cv2.equalizeHist(hue, hue)
-        sat1 = cv2.equalizeHist(sat1, sat1)
-        sat2 = cv2.equalizeHist(sat2, sat2)
+        nx = size[0]
+        ny = size[1]
 
-        #if debug:
-        #    utils.showImages((gray, hue, sat1, sat2), cmap='gray')
+        # Arrays to store object points and image points from all the images.
+        object_points = []  # 3d points in real world space
+        image_points = []  # 2d points in image plane.
 
-        yellow = np.zeros_like(hue)
-        bright0 = np.zeros_like(gray)
-        bright1 = np.zeros_like(sat1)
-        bright2 = np.zeros_like(sat2)
+        # preparing template to use for every object_points
+        object_point_template = np.zeros((nx * ny, 3), np.float32)
+        object_point_template[:, :2] = np.mgrid[0:nx, 0:ny].T.reshape(-1, 2)
 
-        yellow[( hue > 50 )&( hue < 60 )] = 1
-        bright0[gray > 240] = 1
-        bright1[sat1 > 240] = 1
-        bright2[sat2 > 240] = 1
-        color = ((bright0 & bright1) | (bright0 & bright2)) | yellow
+        # Step through the list and search for chessboard corners
+        for idx, filename in enumerate(image_paths):
+            img = cv2.imread(filename )
+            gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        if debug:
-            utils.showImages((yellow, bright0, bright1, bright2, color), cmap='gray')
+            # Find the chessboard corners
+            ret, image_corners = cv2.findChessboardCorners(gray, (nx, ny), None)
 
-        hue_sx = utils.gradientAbolutes(hue, orient='x', thresh=(40, 255))
-        hue_sy = utils.gradientAbolutes(hue, orient='y', thresh=(60, 255))
-        hue_mag = utils.gradientMagnitude(hue, thresh=(50, 255))
-        hue_dir = utils.gradientDirection(gray, thresh=(0.8, 0.9))
+            # If found, add object points, image points
+            if ret == True:
+                #print(image_corners)
+                object_points.append(object_point_template)
+                image_points.append(image_corners)
 
-        if debug:
-            utils.showImages((hue_sx, hue_sy, hue_mag, hue_dir), cmap='gray')
+                # Draw and display the corners
+                if debug:
+                    img_lines = cv2.drawChessboardCorners(img, (nx, ny), image_corners, ret)
+                    plt.imshow(img_lines)
+                    plt.show()
+                    plt.close('all')
 
-        gray_sx = utils.gradientAbolutes(gray, orient='x', thresh=(40, 255))
-        gray_sy = utils.gradientAbolutes(gray, orient='y', thresh=(60, 255))
-        gray_mag = utils.gradientMagnitude(gray, thresh=(50, 255))
-        gray_dir = utils.gradientDirection(gray, thresh=(0.8, 0.9))
+            else:
+                print('Corners NOT found for image',filename)
 
-        sat1_sx = utils.gradientAbolutes(sat1, orient='x', thresh=(20, 255))
-        sat1_sy = utils.gradientAbolutes(sat1, orient='y', thresh=(60, 255))
-        sat1_mag = utils.gradientMagnitude(sat1, thresh=(50, 255))
-        sat1_dir = utils.gradientDirection(sat1, thresh=(0.8, 0.9))
+        sample_image = cv2.imread(image_paths[0])
+        height, width, channels = sample_image.shape
 
-        sat2_sx = utils.gradientAbolutes(sat2, orient='x', thresh=(20, 255))
-        sat2_sy = utils.gradientAbolutes(sat2, orient='y', thresh=(60, 255))
-        sat2_mag = utils.gradientMagnitude(sat2, thresh=(50, 255))
-        sat2_dir = utils.gradientDirection(sat2, thresh=(0.8, 0.9))
+        # Do camera calibration given object points and image points
+        ret, mtx, dist, rvecs, tvecs = cv2.calibrateCamera(object_points, image_points, (width,height), None, None)
 
-        avg_s = (hue_sx & hue_sy) | (gray_sx & gray_sy) | (sat1_sx & sat1_sy) | (sat2_sx & sat2_sy)
-        avg_mag = (hue_mag & gray_mag  & sat1_mag & sat2_mag)
-        avg_dir = (hue_dir & gray_dir & sat1_dir & sat2_dir )
+        self.calibrations = {
+            'ret':ret,
+            'mtx':mtx,
+            'dist':dist,
+            'rvecs':rvecs,
+            'tvecs':tvecs
+        }
+        #print(self.calibrations)
 
-        avg_mask = ( color | yellow | avg_s | avg_mag | avg_dir  )
-        if debug:
-            utils.showImages((avg_mask, color, yellow, avg_s, avg_mag, avg_dir))
-        lines = np.zeros_like(avg_mask)
-        lines[avg_mask == 1] = 255
+        if force or not os.path.isfile(self.filename):
+            self.saveCalibrations()
 
-
-
-        return lines
-
-    def birdsEye(self,img, offset=(65,100), margin=(200,60), lines_distance=700,debug=False):
-        h,w = img.shape[0],img.shape[1]
-        cx,cy = int(w/2),int(h/2)
-
-        top_left, top_right = [cx - offset[0], cy + offset[1]], [cx + offset[0], cy + offset[1]]
-        bottom_left, bottom_right = [margin[0], h-margin[1]], [w-margin[0], h-margin[1]]
-        src_point = np.array([top_left, top_right, bottom_right, bottom_left], np.float32)
-
-
-        top_left[0] = bottom_left[0]   = int((w/2)-(lines_distance/2))
-        top_right[0] = bottom_right[0] = int((w/2)+(lines_distance/2))
-        top_left[1] = top_right[1] = 0
-        bottom_left[1] = bottom_right[1] = h
-        dst_point = np.array([top_left, top_right, bottom_right, bottom_left], np.float32)
-
-        M = cv2.getPerspectiveTransform(src_point, dst_point)
-        warped = cv2.warpPerspective(img, M, (w, h), flags=cv2.INTER_LINEAR)
-
-        if debug:
-            img = img.copy()
-            cv2.polylines(img, np.array([src_point], np.int), True, (255,0,0))
-
-        return warped, img
+        return ret
 
     def saveCalibrations(self,filename=None):
         if filename is None:
@@ -365,6 +461,5 @@ class Camera():
         if os.path.isfile(filename):
             with open(filename, 'rb') as picklefile:
                 self.calibrations = pickle.load(picklefile)
-
 
 

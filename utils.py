@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import math
 import numpy as np
 import cv2
-
+import datetime
 
 ## IMAGE DISPLAY
 
@@ -118,3 +118,15 @@ def gradientAbolutes(gray_img, orient='x', thresh=(100,200), debug=False):
     # 6) Return this mask as your binary_output image
     #binary_output = np.copy(img) # Remove this line
     return binary_sobel
+
+## files handling
+
+def standardDateFormat():
+    return datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
+
+def filename_append(path, suffix):
+    parts = path.split(".")
+    ext = parts[-1]
+    base = ".".join(parts[:-1])+suffix+'.'+ext
+    return base
+
