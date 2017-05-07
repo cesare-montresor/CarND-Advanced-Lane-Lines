@@ -221,3 +221,5 @@ I believe is much more fast and easy and deliver a more robust result to augment
 More over, I believe that using this kind of approach, the dataset can be easily extended and the model retrained to include other types of terrain (drit roads, holes, etc) or driving conditions (night, snow, rain, fog, etc) as long as a left and right margin can be identified by a human driver 
 
 Also a great improvements and robustness can be obtained by "stitching" the lanes pixels from the previous frames with the current one and fit the polynomio on the resulting image, however is not trivial as the due to the prospective transformation the 2 images will never match perfectly like in a 360° image. Perhaps using the speed of the car, or an estimation of it (GPS, segmented lines?) 2 frames can be easily overlayed.  
+
+_ I would have loved to try this approach as my main interest is deep learning but this month I'm travelling and I have much less time, next month :) _
