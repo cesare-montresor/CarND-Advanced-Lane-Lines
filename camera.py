@@ -173,8 +173,6 @@ class Camera():
         undist = cv2.undistort(img, self.calibrations['mtx'], self.calibrations['dist'], None, self.calibrations['mtx'])
         return undist
 
-
-
     def threasholdLaneLines(self,image, kernel_size=(3,2), debug=False):
         gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         hls = cv2.split( cv2.cvtColor(image, cv2.COLOR_RGB2HLS) )
@@ -264,7 +262,7 @@ class Camera():
     # offset=(65,98), margin=(200,40)
     # offset=(60,95), margin=(200,40)
     # offset=(35,82), margin=(200,40)
-    def birdsEye(self,img, offset=(48,88), margin=(200,40), kernel_size=(2,2) ,debug=False):
+    def birdsEye(self,img, offset=(48,88), margin=(200,40), debug=False):
         h,w = img.shape[0],img.shape[1]
         cx,cy = int(w/2),int(h/2)
 
@@ -282,12 +280,6 @@ class Camera():
         M = cv2.getPerspectiveTransform(src_point, dst_point)
         warped = cv2.warpPerspective(img, M, (w, h), flags=cv2.INTER_LINEAR)
 
-
-        # density based noise reduction
-        # opening: erosion and dilation, see : http://docs.opencv.org/3.0-beta/doc/py_tutorials/py_imgproc/py_morphological_ops/py_morphological_ops.html
-        # kernel = np.ones(kernel_size, np.uint8)
-        # warped = cv2.morphologyEx(warped, cv2.MORPH_OPEN, kernel, iterations=3)
-        # REMOVED: seems that interpolation works better with noise ...
         debug_image = None
         if debug:
             debug_image = warped.copy()*255
