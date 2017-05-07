@@ -5,26 +5,27 @@ import glob, os
 import matplotlib.pyplot as plt
 import numpy as np
 
-test_images_path = './test_images/'
 calibration_path = './camera_cal/'
 
+test_images_path = './test_images/*.jpg'
+video_frame_path = './frames/*_1000_*.jpg'
 
+
+test_pipeline = False
+test_pipeline_path = test_images_path
+#test_pipeline_path = video_frame_path
 
 
 image_paths=glob.glob(calibration_path+'*.jpg')
 camera = Camera()
 camera.calibrate(image_paths)
 
-test_images_paths = glob.glob(test_images_path+'*.jpg')
-image = cv2.imread(test_images_paths[0])
-image = cv2.cvtColor(image,cv2.COLOR_BGR2RGB)
-
-hud = camera.pipeline(image, debug=False)
-utils.showImage(hud)
-
-camera.processVideo('project_video.mp4')
-
-# camera.processVideo('challenge_video.mp4') #, live=True)
+if test_pipeline:
+    images = utils.loadImages(test_pipeline_path, cv2.COLOR_BGR2RGB)
+    hud = camera.pipeline(images[0], debug=True, dump_partials=False)
+    utils.showImage(hud)
+else:
+    camera.processVideo('project_video.mp4', debug=False, live=False)
 
 
 

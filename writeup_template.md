@@ -19,13 +19,23 @@ The goals / steps of this project are the following:
 
 [//]: # (Image References)
 
-[image1]: ./examples/undistort_output.png "Undistorted"
-[image2]: ./test_images/test1.jpg "Road Transformed"
-[image3]: ./examples/binary_combo_example.jpg "Binary Example"
-[image4]: ./examples/warped_straight_lines.jpg "Warp Example"
-[image5]: ./examples/color_fit_lines.jpg "Fit Visual"
-[image6]: ./examples/example_output.jpg "Output"
-[video1]: ./project_video.mp4 "Video"
+[original]: ./output_images/birdeye.png "Original"
+[birdeye]: ./output_images/birdeye.png "birdeye"
+[calibration_effects]: ./output_images/calibration_effects.png "calibration_effects"
+[color_gradients]: ./output_images/color_gradients.png "color_gradients"
+[curvature_plot]: ./output_images/curvature_plot.png "curvature_plot"
+[direction_gradient]: ./output_images/direction_gradient.png "direction_gradient"
+[direction_gratient_test]: ./output_images/direction_gratient_test.png "direction_gratient_test"
+[final_image]: ./output_images/final_image.png "final_image"
+[hist_search]: ./output_images/hist_search.png "hist_search"
+[hist_search_pikes]: ./output_images/hist_search_pikes.png "hist_search_pikes"
+[roi]: ./output_images/roi.png "roi"
+[threshold_colors]: ./output_images/threshold_colors.png "threshold_colors"
+[thresholded]: ./output_images/thresholded.png "thresholded"
+[undistort]: ./output_images/undistort.png "undistort"
+[window_search]: ./output_images/window_search.png "window_search"
+[window_search_interpolation]: ./output_images/window_search_interpolation.png "window_search_interpolation"
+[project_video_final]: ./project_video_final.mp4 "project_video_final"
 
 ## [Rubric](https://review.udacity.com/#!/rubrics/571/view) Points
 
@@ -33,7 +43,24 @@ The goals / steps of this project are the following:
 
 ---
 
-### Writeup / README
+### Project structure
+
+- **main.py**  
+  The main script, just hit run
+- **camera.py**  
+  Contains all the methods that transform the image as well as the mothos to process the whole video wraped-up in a Camera class. 
+- **road.py**  
+  Contains the classes of objects detected on the road, currently: Line and Lane. It also compute the radius of the curvature.  
+- **utils.py**  
+  Contains various helper methods to load, display and transform images. It also contains the methods to compute various gradients. 
+- **output_images/**
+  Contains the partials images of the pipeline.
+- **frames/**
+  Used to dump images from a video, useful for testing and tuning the pipeline on unfriendly frames (see: Camera.extractFrames() ) 
+- **camera_params.p**
+  Store the parameters obtained during the camera calibration is used to undistort images.
+  
+### Writeup
 
 #### 1. Provide a Writeup / README that includes all the rubric points and how you addressed each one.  You can submit your writeup as markdown or pdf.  [Here](https://github.com/udacity/CarND-Advanced-Lane-Lines/blob/master/writeup_template.md) is a template writeup for this project you can use as a guide and a starting point.  
 
@@ -43,11 +70,7 @@ You're reading it!
 
 #### 1. Briefly state how you computed the camera matrix and distortion coefficients. Provide an example of a distortion corrected calibration image.
 
-The code for this step is contained in the first code cell of the IPython notebook located in "./examples/example.ipynb" (or in lines # through # of the file called `some_file.py`).  
 
-I start by preparing "object points", which will be the (x, y, z) coordinates of the chessboard corners in the world. Here I am assuming the chessboard is fixed on the (x, y) plane at z=0, such that the object points are the same for each calibration image.  Thus, `objp` is just a replicated array of coordinates, and `objpoints` will be appended with a copy of it every time I successfully detect all chessboard corners in a test image.  `imgpoints` will be appended with the (x, y) pixel position of each of the corners in the image plane with each successful chessboard detection.  
-
-I then used the output `objpoints` and `imgpoints` to compute the camera calibration and distortion coefficients using the `cv2.calibrateCamera()` function.  I applied this distortion correction to the test image using the `cv2.undistort()` function and obtained this result: 
 
 ![alt text][image1]
 

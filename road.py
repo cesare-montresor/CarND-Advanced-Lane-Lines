@@ -76,7 +76,7 @@ class Lane():
         line.count = total
         return line
 
-    def curvature(self, img_size=(1280,720), margin=1, lane_width_m = 3.7, lane_length_m = 30,  debug=False):
+    def curvature(self, img_size=(1280,720), margin=1, lane_width_m = 3.7, lane_length_m = 50,  debug=False):
         # pick the line with more points
         w,h = img_size
 
@@ -96,13 +96,6 @@ class Lane():
         leftx = np.array([x + np.random.randint(-margin, high=margin + 1) for x in left_fitx])
         rightx = np.array([x + np.random.randint(-margin, high=margin+1) for x in right_fitx])
 
-        lines_delta_x_top = right_fitx[0] - left_fitx[0] # reliable only for straight lines ?
-        lines_delta_x_bot = right_fitx[-1] - left_fitx[-1]
-
-        #print('pixels line distance top   ', right_fitx[0], '-', left_fitx[0], '=', lines_delta_x_top)
-        #print('pixels line distance bottom', right_fitx[-1],'-', left_fitx[-1],'=', lines_delta_x_bot)
-
-
         if debug:
             # Plot up the fake data
             mark_size = 3
@@ -121,10 +114,12 @@ class Lane():
 
         point_y = h
 
-        self.best.curve_rad_px  = ((1 + (2 * best_fit[0] * point_y + best_fit[1]) ** 2) ** 1.5) / np.absolute( 2 * best_fit[0])
-        self.left.curve_rad_px  = ((1 + (2 * left_fit[0] * point_y + left_fit[1]) ** 2) ** 1.5) / np.absolute(2 * left_fit[0])
-        self.right.curve_rad_px = ((1 + (2 * right_fit[0] * point_y + right_fit[1]) ** 2) ** 1.5) / np.absolute(2 * right_fit[0])
+        #lines_delta_x_top = right_fitx[0] - left_fitx[0]  # reliable only for straight lines ?
+        lines_delta_x_bot = right_fitx[-1] - left_fitx[-1]
 
+
+        #print('pixels line distance top   ', right_fitx[0], '-', left_fitx[0], '=', lines_delta_x_top)
+        #print('pixels line distance bottom', right_fitx[-1],'-', left_fitx[-1],'=', lines_delta_x_bot)
 
         # conversions in x and y from pixels space to meters
         xm_per_pix = lane_width_m / lines_delta_x_bot

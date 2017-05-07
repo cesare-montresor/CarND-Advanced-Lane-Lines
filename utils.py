@@ -47,6 +47,7 @@ def drawGrid(img,rows=10,cols=10):
             cv2.line(img, ( int(dw*c), 0), ( int(dw*c), h), (0, 255, 0), 5) # vertical
     return img
 
+
 ## IMAGE MODIFICATION
 
 def cropImage(image,margins): # css style: top, right, bottom, left
@@ -54,12 +55,32 @@ def cropImage(image,margins): # css style: top, right, bottom, left
     return image[margins[1]:w-margins[3], margins[0]:h-margins[2]]
 
 
+def normalizeImage(img):
+    img = img.copy()
+    if np.max(img) <= 1:  # convert bitmask into image
+        img *= 255
 
+    if len(img.shape) == 2 or img.shape[2] == 1:
+        img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+
+    return img
+
+## IMAGE LOAD
+
+def loadImages(path, color_space = cv2.COLOR_BGR2RGB):
+    img_paths = glob.glob(path)
+    imgs = []
+    for img_path in img_paths:
+        img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, color_space)
+        imgs.append(img)
+    return imgs
 
 
 ## IMAGE THRESHOLDING
 
-def gradientDirection(gray_img, sobel_kernel=3, thresh=(np.pi / 8, np.pi / 2), debug=False):
+def gradientDirection(gray_img, sobel_kernel=3, thresh=(0, np.pi / 2), debug=False):
     # 2) Take the gradient in x and y separately
     sx = cv2.Sobel(gray_img, cv2.CV_64F, 1, 0, ksize=sobel_kernel)
     sy = cv2.Sobel(gray_img, cv2.CV_64F, 0, 1, ksize=sobel_kernel)
@@ -129,4 +150,10 @@ def filename_append(path, suffix):
     ext = parts[-1]
     base = ".".join(parts[:-1])+suffix+'.'+ext
     return base
+
+def change_ext(path, new_ext):
+    parts = path.split(".")
+    parts[-1] = new_ext
+    return ".".join(parts)
+
 

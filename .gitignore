@@ -1,3 +1,5 @@
+!.gitignore
+.DS_store
 # Created by .ignore support plugin (hsz.mobi)
 ### Python template
 # Byte-compiled / optimized / DLL files
@@ -101,3 +103,29 @@ ENV/
 .idea/modules.xml
 .idea/workspace.xml
 signs_vehicles_xygrad.png
+camera_cal/camera_cal_undist/
+frames/
+output_images/pipeline_partials_00.jpg
+output_images/pipeline_partials_01.jpg
+output_images/pipeline_partials_02.jpg
+output_images/pipeline_partials_03.jpg
+output_images/pipeline_partials_04.jpg
+output_images/pipeline_partials_06.jpg
+test_gradinent.py
+test_gradinent_dir.py
+test_images/fail/
+videos/project_video_20170505-173652.mp4
+videos/project_video_20170505-173709.mp4
+videos/project_video_20170505-180421.mp4
+videos/project_video_20170505-182028.mp4
+videos/project_video_20170506-094300.mp4
+videos/project_video_20170506-100241.mp4
+writeup_images/threshold_colors.png
+writeup_images/undistort.png
+output_images/00_original.jpg
+output_images/01_calibration_effects.png
+output_images/02_undistorted.jpg
+output_images/03_thresholding.jpg
+output_images/04_ROI.jpg
+output_images/05_birdeye_view.jpg
+output_images/06_final.jpg
