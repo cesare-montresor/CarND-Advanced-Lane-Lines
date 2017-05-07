@@ -122,31 +122,31 @@ I later introduced the additional threshold on lightness, to ensure that the sat
 **Final threshold**  
 ![thresholded]
 
-Even if most of the scene is cut out by the prespective transformation, I anyway decided to mask the image with a ROI to futher reduce noise near horizon.
+Even if most of the scene is cut out by the prespective transformation, I anyway decided to mask the image with a ROI to futher reduce noise near horizon.  
 
 **Final threshold + ROI**  
 ![ROI]
 
 #### 3. Describe how (and identify where in your code) you performed a perspective transform and provide an example of a transformed image.
 
-The code related to the perspective transform can be found in the function `birdsEye()` (camera.py:265)
-I started of as suggested by picking points around the lanes in test images, but the result was quite poor, so I've tried to collect several boxes and average them, still a poor result, a few pixel difference near the horizont make huge difference in the final result, my images where all skewed in one way or another. 
-So I decided to go for a numeric way and tune the parameter until I reached an acceptable result, for doing so I immagined a trapezioid going from the center of the image to the bottom of the image.   
-There are 2 (4 really) parameters to tune the shape and they can be passed to the function:
+The code related to the perspective transform can be found in the function `birdsEye()` (camera.py:265)  
+I started of as suggested by picking points around the lanes in test images, but the result was quite poor, so I've tried to collect several boxes and average them, still a poor result, a few pixel difference near the horizont make huge difference in the final result, my images where all skewed in one way or another.   
+So I decided to go for a numeric way and tune the parameter until I reached an acceptable result, for doing so I imagined a trapezoid going from the center of the image to the bottom of the image.     
+There are 2 (4 really) parameters to tune the shape and they can be passed to the function:  
 
-`def birdsEye(self,img, offset=(48,88), margin=(200,40), debug=False):`
+`def birdsEye(self,img, offset=(48,88), margin=(200,40), debug=False):`  
 
-- offset:  horizontal and vertical offset from the center of the image
-- margin:  left and bottom margin 
+- offset:  horizontal and vertical offset from the center of the image  
+- margin:  left and bottom margin  
 
 ![birdeye]  
 
-At some point I've also considered a way to make it self tuning, by drawing lines of a specific color (removing that color from the image before eventually) performing a transformation, linearly interpolating the lines in the transformed image, and slowly tune the parameters until it reach straight lines, but by then I already reached an acceptable result, next project ^_^
+At some point I've also considered a way to make it self tuning, by drawing lines of a specific color (removing that color from the image before eventually) performing a transformation, linearly interpolating the lines in the transformed image, and slowly tune the parameters until it reach straight lines, but by then I already reached an acceptable result, next project ^_^  
 
 #### 4. Describe how (and identify where in your code) you identified lane-line pixels and fit their positions with a polynomial?
 
-I then perform the the line searching using the function  `laneSearch()` (camera.py:239)
-The function initally use `laneSearchHistogram()` (camera.py:348) to find the starting point of the left and right lane.
+I then perform the the line searching using the function  `laneSearch()` (camera.py:239)  
+The function initally use `laneSearchHistogram()` (camera.py:348) to find the starting point of the left and right lane.  
 
 ![hist_search]
 ![hist_search_pikes]
@@ -159,26 +159,26 @@ and the a polinomio is fit to the pixels
 
 ![window_search_interpolation]
 
-As a final step of the `laneSearch()` function (camera.py:329) the information is organized into 2 `Line()` objects (road.py:5), the 2 `Line()` objects are then assigned to a `Lane()` object which represent an abstract version of the lane lines the current frame.
-All the lane object as stored for future use.
+As a final step of the `laneSearch()` function (camera.py:329) the information is organized into 2 `Line()` objects (road.py:5), the 2 `Line()` objects are then assigned to a `Lane()` object which represent an abstract version of the lane lines the current frame.  
+All the lane object as stored for future use.  
 The lane object also compute the radius of curvature (see next point for details)    
 
 #### 5. Describe how (and identify where in your code) you calculated the radius of curvature of the lane and the position of the vehicle with respect to center.
 
-The code related to the computation of the radius of curvature can be found in the function `curvature()` (road.py:79)
+The code related to the computation of the radius of curvature can be found in the function `curvature()` (road.py:79)  
 In order to reduce the errors I decided to compute the radius on a 3rd polynomio produced by `Lane()` method `bestLine()` (road.py:61)  
-I've been thinking of several way to produce the `bestLine()` and the current solution can be improved in may ways (see last point) however, the current solution perform a weighted average on the first 2 terms of the polinomio based on the amount of pixels used to fit the original polinomios.   
-As for the 3 term I used a simple average to place it in the middle (even if it doesn't really matter it's x position for computing the curvature... but it looks better)
-To reduce stabilize the computation of the radius I also reduced to 1 the margin of the random point used to interpolate the circle, that's why in the plot the dots are not really visible.
-In order to bring transform from px space to m space I've been using the distance in pixels between the lane for the x value and for the y values I've been using the size of the segmented lines from the birdeye view(manually) to estimate the overall length of the observed area. 
+I've been thinking of several way to produce the `bestLine()` and the current solution can be improved in may ways (see last point) however, the current solution perform a weighted average on the first 2 terms of the polinomio based on the amount of pixels used to fit the original polinomios.     
+As for the 3 term I used a simple average to place it in the middle (even if it doesn't really matter it's x position for computing the curvature... but it looks better)  
+To reduce stabilize the computation of the radius I also reduced to 1 the margin of the random point used to interpolate the circle, that's why in the plot the dots are not really visible.  
+In order to bring transform from px space to m space I've been using the distance in pixels between the lane for the x value and for the y values I've been using the size of the segmented lines from the birdeye view(manually) to estimate the overall length of the observed area.   
  
 ![curvature_plot]
 
 #### 6. Provide an example image of your result plotted back down onto the road such that the lane area is identified clearly.
 
-The code that produce the overlay on the original image in the function `HUD()` (camera.py:427)
-I first generate the overlay on an empty image for the lane (green) giving evidence to the left(red) and right(blue) lanes, also the radius curvature is printed in the middle (almost, cv2.getTextSize() not sure ) of the lane.  
-Than using previously stored transformations points generated by `birdEye()` function (camera.py:279) I reverse the prospective transformation and merge it with the original image. 
+The code that produce the overlay on the original image in the function `HUD()` (camera.py:427)  
+I first generate the overlay on an empty image for the lane (green) giving evidence to the left(red) and right(blue) lanes, also the radius curvature is printed in the middle (almost, cv2.getTextSize() not sure ) of the lane.    
+Than using previously stored transformations points generated by `birdEye()` function (camera.py:279) I reverse the prospective transformation and merge it with the original image.  
 In order to smooth the result the `HUD()` function average the last N (3, Camera.avgLastN) polynomios as well as the radius (better ways can be used, see last point)  
 
 ![final_image]
@@ -197,9 +197,9 @@ Here's a [link to my video result](./project_video_final.mp4)
 
 #### 1. Briefly discuss any problems / issues you faced in your implementation of this project.  Where will your pipeline likely fail?  What could you do to make it more robust?
 
-I feel slightly uncomfortable with this project as the code contains an impressive amount of hardcoded parameters, which is already a clear signal of how the solution have been tailored on this one problem and it will miserably fail on slightly different scenario.
-Above all, as for the first project in this course, the weakest spot is the method by which the lane lines pixels are extracted from the image, the thresholding on colors and gradients.
-I've been playing around a lot with it (see test_gradient.py, test_gradient_dir.py), by extracting all the frames of the video (camera.py:107) and fine tune it on faulty frames however it still remain a quite delicate system.
+I feel slightly uncomfortable with this project as the code contains an impressive amount of hardcoded parameters, which is already a clear signal of how the solution have been tailored on this one problem and it will miserably fail on slightly different scenario.  
+Above all, as for the first project in this course, the weakest spot is the method by which the lane lines pixels are extracted from the image, the thresholding on colors and gradients.  
+I've been playing around a lot with it (see test_gradient.py, test_gradient_dir.py), by extracting all the frames of the video (camera.py:107) and fine tune it on faulty frames however it still remain a quite delicate system.  
 
 If I could solve this problem the way I wanted I would done the following:  
 - record a video of a driving car in the best condition possible.
@@ -214,8 +214,9 @@ If I could solve this problem the way I wanted I would done the following:
   - solid occlusions (for other vehicles)
   - horizontal and vertical transitions (slopes)
   - horizontal and vertical image multiple skewing (series of curves)
-- train a small convNet for line thresholding and lane searching (together ? separately ? separately and trained together?) 
-I believe is much more fast and easy and deliver a more robust result to augment a dataset for every possible variation then writing a software that is flexible enough to accomodated every variation of the road. 
+- train a small convNet for line thresholding and lane searching (together ? separately ? separately and trained together?)   
+
+I believe is much more fast and easy and deliver a more robust result to augment a dataset for every possible variation then writing a software that is flexible enough to accomodated every variation of the road.   
 More over, I believe that using this kind of approach, the dataset can be easily extended and the model retrained to include other types of terrain as long as a left and right margin can be identified.  
 
-Also a great improvements and robustness can be obtained by "stitching" the lanes pixels from the previous frames with the current one and fit the polynomio on the resulting image, however is not trivial as the due to the prospective transformation the 2 images will never match perfectly like in a 360° image. Perhaps using the speed of the car, or an estimation of it (GPS, segmented lines?) 2 frames can be easily overlayed.
+Also a great improvements and robustness can be obtained by "stitching" the lanes pixels from the previous frames with the current one and fit the polynomio on the resulting image, however is not trivial as the due to the prospective transformation the 2 images will never match perfectly like in a 360° image. Perhaps using the speed of the car, or an estimation of it (GPS, segmented lines?) 2 frames can be easily overlayed.  
