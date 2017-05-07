@@ -10,7 +10,7 @@ calibration_path = './camera_cal/'
 test_images_path = './test_images/*.jpg'
 video_frame_path = './frames/*_1000_*.jpg'
 
-
+debug = False
 test_pipeline = False
 test_pipeline_path = test_images_path
 #test_pipeline_path = video_frame_path
@@ -22,10 +22,10 @@ camera.calibrate(image_paths)
 
 if test_pipeline:
     images = utils.loadImages(test_pipeline_path, cv2.COLOR_BGR2RGB)
-    hud = camera.pipeline(images[0], debug=True, dump_partials=False)
+    hud = camera.pipeline(images[0], debug=debug, dump_partials=False)
     utils.showImage(hud)
 else:
-    camera.processVideo('project_video.mp4', debug=False, live=False)
+    camera.processVideo('project_video.mp4', debug=debug, live=False)
 
 
 

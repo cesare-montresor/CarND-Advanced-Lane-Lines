@@ -437,11 +437,13 @@ class Camera():
 
         cntN = len(lastLaneN)
         best_fit, left_fit, right_fit = [0,0,0],[0,0,0],[0,0,0]
-        best_curve_m, left_curve_m, right_curve_m = 0,0,0
+        best_curve_m, left_curve_m, right_curve_m, centerOffset, centerPosition = 0,0,0,0,0
         for lane in lastLaneN:
             best_curve_m += lane.best.curve_rad_m
             left_curve_m += lane.left.curve_rad_m
             right_curve_m += lane.right.curve_rad_m
+            centerOffset += lane.centerOffset
+            centerPosition += lane.best.position
 
             best_fit = np.add(best_fit,lane.best.fit)
             left_fit = np.add(left_fit,lane.left.fit)
@@ -451,6 +453,8 @@ class Camera():
         best_curve_m = best_curve_m / cntN
         left_curve_m = left_curve_m / cntN
         right_curve_m = right_curve_m / cntN
+        centerOffset = centerOffset / cntN
+        centerPosition = centerPosition /cntN
 
         best_fit /= cntN
         left_fit /= cntN
@@ -470,13 +474,21 @@ class Camera():
             hud[y, lx + size:rx - size] = (0, 255, 0)
             hud[y, rx - size:rx + size] = (0, 0, 255)
 
-        text = "{:.0f}".format(best_curve_m)
-        text_size = cv2.getTextSize(text, fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=5, thickness=5)
-        text_w,text_h = text_size[0]
+        font = cv2.FONT_HERSHEY_PLAIN
 
-        text_orig = ( int(lane.left.position+text_w/2), int(h-20) )
+        radius_text = "{:.0f}m ".format(best_curve_m)
+        text_size = cv2.getTextSize(radius_text, fontFace=font, fontScale=4, thickness=4)
+        text_w, text_h = text_size[0]
+        text_orig = ( int( centerPosition - (text_w/2) ), int(h - 50))
         #print('text_box',text_box,'text_box_width',text_box_width)
-        cv2.putText(hud, text, text_orig, fontFace=cv2.FONT_HERSHEY_PLAIN, fontScale=5, thickness=5, color=(255, 255, 255))
+        cv2.putText(hud, radius_text, text_orig, fontFace=font, fontScale=4, thickness=4, color=(255, 255, 255))
+
+
+        center_text = "{:.1f}m ".format(centerOffset)
+        text_size = cv2.getTextSize(center_text, fontFace=font, fontScale=2, thickness=2)
+        text_w, text_h = text_size[0]
+        text_orig = (int( centerPosition - (text_w/2) ), int(h - 10))
+        cv2.putText(hud, center_text, text_orig, fontFace=font, fontScale=2, thickness=2, color=(0, 0, 0))
 
         src_point,dst_point = self.lastBirdEyePoints['src'], self.lastBirdEyePoints['dst']
         M = cv2.getPerspectiveTransform(dst_point, src_point)

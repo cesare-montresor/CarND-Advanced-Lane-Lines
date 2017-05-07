@@ -48,6 +48,7 @@ class Lane():
         self.left = None
         self.right = None
         self.best = None
+        self.centerOffset = None
 
     def __str__(self):
         display = {
@@ -72,7 +73,7 @@ class Lane():
             self.left.fit[1]*left_weight + self.right.fit[1]*right_weight,
             (self.left.fit[2] + self.right.fit[2])/2, # lines midpoint makes more sense than weighted
         ]
-        line.position = line.fit[2]
+        line.position = (self.left.position + self.right.position)/2
         line.count = total
         return line
 
@@ -117,7 +118,6 @@ class Lane():
         #lines_delta_x_top = right_fitx[0] - left_fitx[0]  # reliable only for straight lines ?
         lines_delta_x_bot = right_fitx[-1] - left_fitx[-1]
 
-
         #print('pixels line distance top   ', right_fitx[0], '-', left_fitx[0], '=', lines_delta_x_top)
         #print('pixels line distance bottom', right_fitx[-1],'-', left_fitx[-1],'=', lines_delta_x_bot)
 
@@ -137,7 +137,7 @@ class Lane():
 
         #print(self.best.curve_rad_m, 'm', self.left.curve_rad_m, 'm', self.right.curve_rad_m, 'm')
         #print(self.best.fit, '\n', self.left.fit, '\n', self.right.fit)
-
+        #print((w/2), best_fit[2])
+        self.centerOffset = ((best_fit[2] - (w/2))/2) * xm_per_pix
 
         return self.best, self.left, self.right
-
