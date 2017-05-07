@@ -55,11 +55,11 @@ The goals / steps of this project are the following:
   Contains the classes of objects detected on the road, currently: Line and Lane. It also compute the radius of the curvature.  
 - **utils.py**  
   Contains various helper methods to load, display and transform images. It also contains the methods to compute various gradients. 
-- **output_images/**
+- **output_images/**  
   Contains the partials images of the pipeline.
-- **frames/**
+- **frames/**  
   Used to dump images from a video, useful for testing and tuning the pipeline on unfriendly frames (see: Camera.extractFrames() ) 
-- **camera_params.p**
+- **camera_params.p**  
   Store the parameters obtained during the camera calibration is used to undistort images.
   
 ### Writeup
