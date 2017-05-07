@@ -215,9 +215,9 @@ If I could solve this problem the way I wanted I would tried the following appro
   - horizontal and vertical transitions (slopes)
   - horizontal and vertical image multiple skewing (series of curves)
 - train a (small?) convNet for line thresholding and lane searching (together ? separately ? separately and trained together?)   
-- used the model to produce more dataset from video of driving in worst condition, cleanup the dataset using classing computer vision tecniques, repeat the whole process.
+- used the model to produce more dataset from video of driving in worst condition, cleanup the dataset using classing computer vision techniques, repeat the whole process.
 
-I believe is much more fast and easy and deliver a more robust result to augment a dataset for every possible variation then writing a software that is flexible enough to accomodated every variation of the road.   
-More over, I believe that using this kind of approach, the dataset can be easily extended and the model retrained to include other types of terrain (drit roads, ) or driving conditions (night, snow, rain, fog, etc) as long as a left and right margin can be identified.  
+I believe is much more fast and easy and deliver a more robust result to augment a dataset for every possible variation then writing a software that is flexible enough to accommodate every variation of the road.   
+More over, I believe that using this kind of approach, the dataset can be easily extended and the model retrained to include other types of terrain (drit roads, holes, etc) or driving conditions (night, snow, rain, fog, etc) as long as a left and right margin can be identified by a human driver 
 
 Also a great improvements and robustness can be obtained by "stitching" the lanes pixels from the previous frames with the current one and fit the polynomio on the resulting image, however is not trivial as the due to the prospective transformation the 2 images will never match perfectly like in a 360° image. Perhaps using the speed of the car, or an estimation of it (GPS, segmented lines?) 2 frames can be easily overlayed.  
